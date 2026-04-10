@@ -2,166 +2,93 @@ import streamlit as st
 import pandas as pd
 import random
 
+st.set_page_config(page_title="Smart Habit Tracker", layout="wide")
+
 st.title("✅ Smart Habit Tracker")
 
-# Initialize session state
+# ---------------- SESSION STATE ----------------
 if "habits" not in st.session_state:
     st.session_state.habits = []
 
+# ---------------- SIDEBAR ----------------
+st.sidebar.header("⚙️ Settings")
+
+username = st.sidebar.text_input("Enter your name", "User")
+
+st.sidebar.subheader("🎯 Goals")
+weekly_goal = st.sidebar.slider("Weekly Goal (days)", 1, 7, 5)
+daily_target = st.sidebar.number_input("Daily Habit Target", 1, 10, 3)
+
+st.sidebar.subheader("📊 Progress Summary")
+
+total_habits = len(st.session_state.habits)
+completed_today = sum([sum(habit["days"].values()) for habit in st.session_state.habits])
+
+if total_habits > 0:
+    completion_rate = (completed_today / (total_habits * 7)) * 100
+else:
+    completion_rate = 0
+
+st.sidebar.write(f"Total Habits: {total_habits}")
+st.sidebar.write(f"Completed: {completed_today}")
+st.sidebar.write(f"Completion %: {round(completion_rate, 2)}%")
+
+# ---------------- MOTIVATION ----------------
+affirmations = [
+    "🔥 You're building consistency!",
+    "💪 Small steps = big results",
+    "🌱 Growth takes time—keep going!",
+    "🚀 You're ahead of yesterday!",
+    "🏆 Discipline > Motivation",
+    "✨ Keep showing up!",
+    "📈 Progress, not perfection",
+    "💯 You got this!",
+    "🧠 Habits shape your future",
+]
+
+st.sidebar.subheader("🔔 Motivation")
+if st.sidebar.button("Get Motivation"):
+    st.sidebar.success(random.choice(affirmations))
+
+# ---------------- RESET BUTTON ----------------
+if st.sidebar.button("🗑️ Reset All Habits"):
+    st.session_state.habits = []
+    st.sidebar.warning("All habits cleared!")
+
+# ---------------- MAIN APP ----------------
+st.subheader(f"Welcome, {username}! 👋")
+
 days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-# ---------------- AFFIRMATION LISTS ----------------
-add_msgs = [
-    "🌱 Every big change starts small!",
-    "🚀 You're taking control of your life!",
-    "💪 One habit closer to your best self!",
-    "🔥 This is how success begins!",
-    "✨ Future you will thank you for this!",
-    "📈 Small habits → Big results!",
-    "🧠 You're building discipline!",
-    "🎯 Great choice! Stay consistent!",
-    "⚡ Action beats intention — well done!",
-    "🌟 You're leveling up!"
-]
+# --- ADD HABIT ---
+st.subheader("➕ Add New Habit")
+habit_name = st.text_input("Habit Name")
 
-high_msgs = [
-    "🔥 You're unstoppable right now!",
-    "🚀 You're in the top 1% of consistency!",
-    "💪 Discipline like this guarantees success!",
-    "🏆 You're proving to yourself that you can do it!",
-    "⚡ This level of focus is rare — keep it!",
-    "🎯 You're not motivated, you're disciplined!",
-    "🌟 You're becoming the person you wanted to be!",
-    "🔥 This is what winning looks like!"
-]
+if st.button("Add Habit"):
+    if habit_name:
+        new_habit = {
+            "name": habit_name,
+            "days": {day: False for day in days}
+        }
+        st.session_state.habits.append(new_habit)
+        st.success("Habit added successfully! 🎉")
 
-mid_msgs = [
-    "👍 You're on the right track!",
-    "📈 Progress is happening — don’t stop!",
-    "💡 Stay consistent, results are coming!",
-    "🚶 Keep going, you're building momentum!",
-    "🌱 You're improving every single day!",
-    "🎯 You're closer than you think!",
-    "💪 Keep showing up — that's what matters!"
-]
+# --- DISPLAY HABITS ---
+st.subheader("📅 Track Your Habits")
 
-low_msgs = [
-    "⚠️ It's okay to start slow — just don’t stop.",
-    "🌱 Small steps still move you forward.",
-    "💭 Tomorrow is a fresh start — use it.",
-    "🔥 Discipline begins when motivation fades.",
-    "⏳ You don’t need perfection, just effort.",
-    "🚶 Start again — that's how winners are made.",
-    "💡 One good day can change everything.",
-    "⚡ Reset. Refocus. Go again."
-]
+for i, habit in enumerate(st.session_state.habits):
+    st.write(f"### {habit['name']}")
+    
+    cols = st.columns(7)
+    for j, day in enumerate(days):
+        habit["days"][day] = cols[j].checkbox(day[:3], habit["days"][day], key=f"{i}_{day}")
 
-# ---------------- ADD HABIT ----------------
-st.header("➕ Add New Habit")
+# ---------------- DATAFRAME VIEW ----------------
+st.subheader("📊 Weekly Overview")
 
-with st.form("habit_form"):
-    habit_name = st.text_input("Habit Name")
-    submitted = st.form_submit_button("Add Habit")
-
-    if submitted:
-        if habit_name:
-            st.session_state.habits.append({
-                "Habit": habit_name,
-                **{day: False for day in days}
-            })
-            st.success("Habit added!")
-            st.info(random.choice(add_msgs))
-
-# ---------------- TRACK HABITS ----------------
-st.header("📅 Track Your Week")
-
-if len(st.session_state.habits) == 0:
-    st.info("No habits added yet!")
-else:
-    df = pd.DataFrame(st.session_state.habits)
-
-    for i, habit in df.iterrows():
-        st.subheader(habit["Habit"])
-
-        cols = st.columns(7)
-
-        for j, day in enumerate(days):
-            with cols[j]:
-                checked = st.checkbox(day[:3], value=habit[day], key=f"{i}_{day}")
-                st.session_state.habits[i][day] = checked
-
-# ---------------- PROGRESS ----------------
-st.header("📊 Progress Overview")
-
-if len(st.session_state.habits) > 0:
-    df = pd.DataFrame(st.session_state.habits)
-
-    progress_data = []
-
-    for _, row in df.iterrows():
-        completed = sum([row[day] for day in days])
-        percent = (completed / 7) * 100
-
-        progress_data.append({
-            "Habit": row["Habit"],
-            "Progress (%)": percent
-        })
-
-    progress_df = pd.DataFrame(progress_data)
-
-    st.dataframe(progress_df, use_container_width=True)
-
-    st.subheader("📊 Habit Progress Chart")
-    st.bar_chart(progress_df.set_index("Habit"))
-
-    st.subheader("📈 Weekly Comparison View")
-    st.line_chart(progress_df.set_index("Habit"))
-
-# ---------------- SMART FEEDBACK ----------------
-st.header("🧠 Smart Feedback")
-
-if len(st.session_state.habits) > 0:
-    avg_progress = progress_df["Progress (%)"].mean()
-
-    if avg_progress >= 80:
-        st.success("Excellent work! You're highly consistent!")
-        st.success(random.choice(high_msgs))
-
-    elif avg_progress >= 50:
-        st.info("You're doing well, but there's room to improve.")
-        st.info(random.choice(mid_msgs))
-
-    elif avg_progress > 0:
-        st.warning("You're getting started — stay consistent!")
-        st.warning(random.choice(low_msgs))
-
-    else:
-        st.write("Start tracking habits to get feedback.")
-
-# ---------------- MOTIVATION BUTTON ----------------
-st.header("💬 Need Motivation?")
-
-if st.button("Give Me Motivation"):
-    all_msgs = high_msgs + mid_msgs + low_msgs + add_msgs
-    st.success(random.choice(all_msgs))
-
-# ---------------- BADGES ----------------
-st.header("🏆 Achievements")
-
-if len(st.session_state.habits) > 0:
-    for habit in st.session_state.habits:
-        completed = sum([habit[day] for day in days])
-        percent = (completed / 7) * 100
-
-        if percent == 100:
-            badge = "🏆 Master"
-        elif percent >= 70:
-            badge = "🥇 Gold"
-        elif percent >= 40:
-            badge = "🥈 Silver"
-        elif percent > 0:
-            badge = "🥉 Bronze"
-        else:
-            badge = "🚀 Start"
-
-        st.write(f"{habit['Habit']} → {badge} ({round(percent)}%)")
+if st.session_state.habits:
+    df = pd.DataFrame([
+        {"Habit": habit["name"], **habit["days"]}
+        for habit in st.session_state.habits
+    ])
+    st.dataframe(df)
