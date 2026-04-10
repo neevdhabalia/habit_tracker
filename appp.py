@@ -18,6 +18,16 @@ username = st.sidebar.text_input("Enter your name", "User")
 st.sidebar.subheader("🎯 Goals")
 weekly_goal = st.sidebar.slider("Weekly Goal (days)", 1, 7, 5)
 
+# ---------------- GRAPH SETTINGS ----------------
+st.sidebar.subheader("📊 Graph Settings")
+
+show_graphs = st.sidebar.checkbox("Show Graphs", value=True)
+
+graph_type = st.sidebar.selectbox(
+    "Select Graph Type",
+    ["Bar Chart", "Line Chart", "Both"]
+)
+
 # ---------------- AFFIRMATIONS ----------------
 affirmations = [
     "🔥 You're unstoppable!",
@@ -84,16 +94,6 @@ for i, habit in enumerate(st.session_state.habits):
     completed = sum(habit["days"].values())
     total_completed += completed
 
-    # 🔥 STREAK LOGIC
-    streak = 0
-    for d in days:
-        if habit["days"][d]:
-            streak += 1
-        else:
-            break
-
-    st.write(f"🔥 Streak: {streak} days")
-
 # ---------------- DATAFRAME ----------------
 if st.session_state.habits:
     df = pd.DataFrame([
@@ -104,12 +104,12 @@ if st.session_state.habits:
     st.subheader("📊 Weekly Table")
     st.dataframe(df)
 
-# ---------------- GRAPHS ----------------
-st.subheader("📊 Progress Graphs")
+# ---------------- GRAPHS (CONTROLLED BY SIDEBAR) ----------------
+if show_graphs and st.session_state.habits:
 
-if st.session_state.habits:
+    st.subheader("📊 Progress Graphs")
 
-    # Total completion per habit
+    # Habit-wise completion
     habit_progress = {
         h["name"]: sum(h["days"].values())
         for h in st.session_state.habits
@@ -120,12 +120,8 @@ if st.session_state.habits:
         columns=["Habit", "Completed Days"]
     )
 
-    st.write("### 📈 Habit Completion")
-    st.bar_chart(progress_df.set_index("Habit"))
-
-    # Daily completion graph
+    # Daily completion
     daily_counts = {day: 0 for day in days}
-
     for h in st.session_state.habits:
         for day in days:
             if h["days"][day]:
@@ -136,8 +132,21 @@ if st.session_state.habits:
         columns=["Day", "Completed Habits"]
     )
 
-    st.write("### 📅 Daily Consistency")
-    st.line_chart(daily_df.set_index("Day"))
+    # Show graphs based on selection
+    if graph_type == "Bar Chart":
+        st.write("### 📈 Habit Completion")
+        st.bar_chart(progress_df.set_index("Habit"))
+
+    elif graph_type == "Line Chart":
+        st.write("### 📅 Daily Consistency")
+        st.line_chart(daily_df.set_index("Day"))
+
+    elif graph_type == "Both":
+        st.write("### 📈 Habit Completion")
+        st.bar_chart(progress_df.set_index("Habit"))
+
+        st.write("### 📅 Daily Consistency")
+        st.line_chart(daily_df.set_index("Day"))
 
 # ---------------- BADGES ----------------
 st.subheader("🏆 Your Badges")
@@ -165,10 +174,7 @@ st.subheader("📌 Summary")
 total_habits = len(st.session_state.habits)
 max_possible = total_habits * 7
 
-if max_possible > 0:
-    percent = (total_completed / max_possible) * 100
-else:
-    percent = 0
+percent = (total_completed / max_possible * 100) if max_possible > 0 else 0
 
 st.write(f"Total Habits: {total_habits}")
 st.write(f"Completed: {total_completed}")
